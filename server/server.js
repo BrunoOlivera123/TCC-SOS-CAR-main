@@ -414,7 +414,7 @@ app.post('/api/auth/esqueci-senha', limitarRequisicoes(60 * 1000, 3), assincrono
   const tipoUsuario = usuario && db.clientes.some((u) => u.id === usuario.id) ? 'cliente' : 'prestador';
 
   if (usuario) {
-    const token = process.env.RESET_TOKEN_OVERRIDE || crypto.randomUUID();
+    const token = crypto.randomUUID();
     const expiraEm = new Date(Date.now() + 60 * 60 * 1000);
     const agora = new Date();
     const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;

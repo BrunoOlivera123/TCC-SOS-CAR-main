@@ -248,44 +248,49 @@
   // Roda uma única vez, assim que a página carrega (chamada lá no final
   // do arquivo). Decide qual tela mostrar primeiro.
   async function iniciar() {
-    registrarServiceWorker();
-    try {
-      await carregarCategorias();
-    } catch (err) {
-      mostrarTela('auth');
-      toast(`Não foi possível carregar a aplicação: ${err.message}`);
-      return;
-    }
+  registrarServiceWorker();
 
-    // Link de redefinição de senha (ex.: "?tipo=cliente&token=..."),
-    // recebido por e-mail — tem prioridade sobre qualquer sessão salva:
-    // quem abriu esse link quer trocar a senha, não continuar logado.
-    const parametros = new URLSearchParams(window.location.search);
-    const token = parametros.get('token');
-    const tipoRedefinicao = parametros.get('tipo');
-    if (token && tipoRedefinicao) {
-      tokenRedefinicaoAtual = token;
-      mostrarTela('redefinirSenha');
-      return;
-    }
+  // Verifica imediatamente se o usuário veio pelo
+  // link de redefinição enviado por e-mail
+  const parametros = new URLSearchParams(window.location.search);
 
-    // Se já existir um token salvo de uma visita anterior, tenta
-    // validar com a API (/auth/me) e pular direto para o painel certo,
-    // sem pedir login de novo.
-    if (API.obterToken()) {
-      try {
-        const { tipo, usuario } = await API.quemSouEu();
-        entrarComoUsuario(tipo, usuario);
-        return;
-      } catch {
-        // Token inválido/expirado (ex.: servidor foi reiniciado) — descarta
-        // e segue para a tela de login normalmente.
-        API.definirToken(null);
-      }
-    }
-    mostrarTela('auth');
+  const token = parametros.get('token');
+  const tipoRedefinicao = parametros.get('tipo');
+
+  if (token && tipoRedefinicao) {
+    tokenRedefinicaoAtual = token;
+
+    // Abre diretamente a tela para criar a nova senha
+    mostrarTela('redefinirSenha');
+
+    return;
   }
 
+  // Se não for redefinição de senha, carrega normalmente
+  try {
+    await carregarCategorias();
+  } catch (err) {
+    mostrarTela('auth');
+    toast(`Não foi possível carregar a aplicação: ${err.message}`);
+    return;
+  }
+
+  // Verifica se existe uma sessão salva
+  if (API.obterToken()) {
+    try {
+      const { tipo, usuario } = await API.quemSouEu();
+
+      entrarComoUsuario(tipo, usuario);
+
+      return;
+    } catch {
+      API.definirToken(null);
+    }
+  }
+
+  // Caso normal: abre a tela de login
+  mostrarTela('auth');
+}
   // Busca as categorias de serviço na API e preenche os dois <select>
   // que dependem delas: o de cadastro de prestador e o de abertura de
   // chamado (que só existe depois do login como cliente, mas já
@@ -594,17 +599,40 @@
         return;
       }
 
-      await comCarregamento(formRedefinirSenha.querySelector('button[type="submit"]'), 'Redefinindo...', async () => {
-        try {
-          await API.redefinirSenha({ token: tokenRedefinicaoAtual, novaSenha });
-          // Limpa "?tipo=...&token=..." da URL para um F5 não reabrir esta tela.
-          window.history.replaceState({}, '', window.location.pathname);
-          formRedefinirSenha.reset();
-          mostrarTela('auth');
-          toast('Senha redefinida com sucesso. Faça login com a nova senha.', 'sucesso');
-        } catch (err) {
-          redefinirSenhaErro.textContent = err.message;
-          redefinirSenhaErro.classList.remove('oculto');
+await comCarregamento(
+  formRedefinirSenha.querySelector('button[type="submit"]'),
+  'Redefinindo...',
+  async () => {
+    try {
+      await API.redefinirSenha({
+        token: tokenRedefinicaoAtual,
+        novaSenha
+      });
+
+      // Remove o token da URL
+      window.history.replaceState({}, '', window.location.pathname);
+
+      // Limpa o formulário
+      formRedefinirSenha.reset();
+
+      // Mostra mensagem de sucesso
+      toast(
+        'Senha redefinida com sucesso. Faça login com a nova senha.',
+        'sucesso'
+      );
+
+      // Atualiza a página e volta para o login
+      setTimeout(() => {
+        window.location.replace('/');
+      }, 1500);
+
+    } catch (err) {
+      console.error('[redefinir-senha] Erro:', err);
+
+      redefinirSenhaErro.textContent =
+        err.message || 'Não foi possível redefinir a senha.';
+
+      redefinirSenhaErro.classList.remove('oculto');
         }
       });
     });

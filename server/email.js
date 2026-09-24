@@ -55,7 +55,7 @@ async function enviarEmailRedefinicao({
                   'http://localhost:3000';
 
   const link =
-    `${baseUrl}/?tipo=${encodeURIComponent(tipo)}&token=${encodeURIComponent(token)}`;
+  `${baseUrl}/?tipo=${encodeURIComponent(tipo)}&token=${encodeURIComponent(token)}&redefinir=1`;
 
   // Caso o Gmail não esteja configurado
   if (!smtpConfigurado()) {
@@ -103,7 +103,7 @@ async function enviarEmailRedefinicao({
         `</p>` +
 
         `<p>` +
-        `<a href="${escaparHtml(link)}" ` +
+        `<a href="${escaparHtml(link)}" target="_self" ` +
         `style="display:inline-block;` +
         `padding:12px 20px;` +
         `background:#2563eb;` +
